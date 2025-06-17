@@ -370,6 +370,16 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 # Construire l'image
 docker build -t bibliotheque-gpi .
 
+
+
+<p align="center">
+  <strong>Développé par Tourad Dah pour les entreprises mauritaniennes</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Made%20in-Mauritania-green?style=for-the-badge" alt="Made in Mauritania">
+</p>
+
 # Lancer avec docker-compose
 docker-compose up -d
 ```
