@@ -1,0 +1,164 @@
+@startuml Système de Réservations - Diagramme Détaillé
+
+title Système de Réservations - Cas d'Utilisation Détaillés
+
+' Acteurs
+actor "Utilisateur" as User
+actor "Bibliothécaire" as Librarian
+actor "Système" as System
+
+' Package Réservations
+package "Gestion des Réservations" {
+    
+    ' ===== CAS D'UTILISATION PRINCIPAUX =====
+    usecase "Réserver un livre" as Reserve
+    usecase "Consulter mes réservations" as ViewReservations
+    usecase "Annuler une réservation" as CancelReservation
+    usecase "Modifier une réservation" as ModifyReservation
+    
+    ' ===== CAS D'UTILISATION ADMINISTRATEUR =====
+    usecase "Gérer toutes les réservations" as ManageAllReservations
+    usecase "Satisfaire une réservation" as FulfillReservation
+    usecase "Voir file d'attente" as ViewQueue
+    usecase "Priorité réservation" as SetPriority
+    
+    ' ===== CAS D'UTILISATION SYSTÈME =====
+    usecase "Vérifier disponibilité" as CheckAvailability
+    usecase "Calculer position file" as CalculatePosition
+    usecase "Estimer délai d'attente" as EstimateWait
+    usecase "Notifier disponibilité" as NotifyAvailability
+    usecase "Expirer réservation" as ExpireReservation
+    usecase "Valider conditions" as ValidateConditions
+    
+    ' ===== SOUS-CAS POUR RÉSERVER =====
+    usecase "Vérifier livre indisponible" as CheckUnavailable
+    usecase "Vérifier pas de réservation existante" as CheckNoExisting
+    usecase "Vérifier pas d'emprunt actuel" as CheckNoCurrentLoan
+    usecase "Vérifier pas de retards" as CheckNoOverdue
+    usecase "Afficher confirmation" as ShowConfirmation
+    usecase "Créer réservation" as CreateReservation
+    
+    ' ===== SOUS-CAS POUR CONSULTATION =====
+    usecase "Filtrer par statut" as FilterByStatus
+    usecase "Trier par date" as SortByDate
+    usecase "Voir détails réservation" as ViewDetails
+    usecase "Voir historique" as ViewHistory
+    
+    ' ===== SOUS-CAS POUR GESTION ADMIN =====
+    usecase "Rechercher réservations" as SearchReservations
+    usecase "Filtrer par utilisateur" as FilterByUser
+    usecase "Filtrer par livre" as FilterByBook
+    usecase "Exporter liste" as ExportList
+    usecase "Statistiques réservations" as ReservationStats
+}
+
+' ===== RELATIONS UTILISATEUR =====
+User --> Reserve
+User --> ViewReservations
+User --> CancelReservation
+User --> ModifyReservation
+
+' ===== RELATIONS BIBLIOTHÉCAIRE =====
+Librarian --> ManageAllReservations
+Librarian --> FulfillReservation
+Librarian --> ViewQueue
+Librarian --> SetPriority
+
+' ===== RELATIONS SYSTÈME =====
+System --> CheckAvailability
+System --> CalculatePosition
+System --> EstimateWait
+System --> NotifyAvailability
+System --> ExpireReservation
+System --> ValidateConditions
+
+' ===== RELATIONS INCLUDE/EXTEND =====
+
+' Pour Réserver un livre
+Reserve ..> CheckUnavailable : <<include>>
+Reserve ..> CheckNoExisting : <<include>>
+Reserve ..> CheckNoCurrentLoan : <<include>>
+Reserve ..> CheckNoOverdue : <<include>>
+Reserve ..> ShowConfirmation : <<include>>
+Reserve ..> CreateReservation : <<include>>
+Reserve ..> CalculatePosition : <<include>>
+Reserve ..> EstimateWait : <<include>>
+
+' Pour Consulter réservations
+ViewReservations ..> FilterByStatus : <<extend>>
+ViewReservations ..> SortByDate : <<extend>>
+ViewReservations ..> ViewDetails : <<extend>>
+ViewReservations ..> ViewHistory : <<extend>>
+
+' Pour Gestion admin
+ManageAllReservations ..> SearchReservations : <<extend>>
+ManageAllReservations ..> FilterByUser : <<extend>>
+ManageAllReservations ..> FilterByBook : <<extend>>
+ManageAllReservations ..> ExportList : <<extend>>
+ManageAllReservations ..> ReservationStats : <<extend>>
+
+' Pour Satisfaire réservation
+FulfillReservation ..> CheckAvailability : <<include>>
+FulfillReservation ..> NotifyAvailability : <<include>>
+
+' Relations système automatiques
+CheckAvailability ..> NotifyAvailability : <<extend>>
+CreateReservation ..> CalculatePosition : <<include>>
+NotifyAvailability ..> ExpireReservation : <<extend>>
+
+' ===== NOTES ET CONTRAINTES =====
+
+note right of Reserve
+  **Conditions préalables:**
+  - Utilisateur authentifié
+  - Livre indisponible
+  - Pas de réservation existante
+  - Pas d'emprunt en cours
+  - Pas de livres en retard
+  
+  **Processus:**
+  1. Vérifications automatiques
+  2. Calcul position file d'attente
+  3. Estimation délai d'attente
+  4. Confirmation utilisateur
+  5. Création réservation
+end note
+
+note right of ViewReservations
+  **Informations affichées:**
+  - Réservations actives
+  - Position dans la file
+  - Date d'expiration
+  - Historique complet
+  - Statuts détaillés
+end note
+
+note right of FulfillReservation
+  **Actions bibliothécaire:**
+  - Vérifier disponibilité
+  - Créer emprunt automatique
+  - Notifier utilisateur
+  - Mettre à jour stock
+  - Traiter file d'attente
+end note
+
+note left of System
+  **Automatisations:**
+  - Notifications par email
+  - Expiration automatique (7j)
+  - Calculs temps réel
+  - Mise à jour statuts
+  - Gestion file d'attente
+end note
+
+' ===== ÉTATS DES RÉSERVATIONS =====
+note bottom
+  **États des réservations:**
+  - **active**: En attente dans la file
+  - **ready**: Livre disponible (7j pour retirer)
+  - **fulfilled**: Transformée en emprunt
+  - **expired**: Expirée (non retirée)
+  - **cancelled**: Annulée par l'utilisateur
+end note
+
+@enduml

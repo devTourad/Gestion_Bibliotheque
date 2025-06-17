@@ -1,0 +1,169 @@
+@startuml Processus de Réservation - Diagramme de Séquence
+
+title Processus Complet de Réservation d'un Livre
+
+actor "Utilisateur" as User
+participant "Interface Web" as UI
+participant "Contrôleur" as Controller
+participant "Service Réservation" as ReservationService
+participant "Service Paiement" as PaymentService
+participant "Base de Données" as DB
+participant "Service Email" as EmailService
+
+== Phase 1: Demande de Réservation ==
+
+User -> UI: Clique sur "Réserver ce livre"
+UI -> Controller: GET /books/{id}/reserve/
+
+Controller -> DB: Vérifier disponibilité du livre
+DB --> Controller: Livre indisponible
+
+Controller -> DB: Vérifier réservations existantes
+DB --> Controller: Aucune réservation active
+
+Controller -> DB: Vérifier emprunts en cours
+DB --> Controller: Aucun emprunt actuel
+
+Controller -> DB: Vérifier livres en retard
+DB --> Controller: Aucun retard
+
+Controller -> ReservationService: Calculer position file d'attente
+ReservationService -> DB: Compter réservations actives
+DB --> ReservationService: Nombre de réservations
+ReservationService --> Controller: Position = N+1
+
+Controller -> ReservationService: Estimer délai d'attente
+ReservationService --> Controller: Estimation basée sur durée moyenne
+
+Controller --> UI: Page de confirmation avec détails
+UI --> User: Affichage confirmation (position, délai)
+
+== Phase 2: Confirmation de Réservation ==
+
+User -> UI: Confirme la réservation
+UI -> Controller: POST /books/{id}/reserve/
+
+Controller -> ReservationService: Créer réservation
+ReservationService -> DB: INSERT Reservation
+DB --> ReservationService: Réservation créée
+
+ReservationService -> DB: Calculer nouvelle date d'expiration
+note right: Date actuelle + 7 jours
+DB --> ReservationService: Date d'expiration
+
+ReservationService --> Controller: Réservation confirmée
+
+Controller -> EmailService: Envoyer confirmation
+EmailService --> User: Email de confirmation
+
+Controller --> UI: Redirection vers "Mes réservations"
+UI --> User: Message de succès
+
+== Phase 3: Notification de Disponibilité ==
+
+note over DB: Un livre est retourné
+DB -> ReservationService: Trigger: Livre disponible
+
+ReservationService -> DB: Trouver première réservation active
+DB --> ReservationService: Réservation prioritaire
+
+ReservationService -> DB: Mettre à jour statut "ready"
+DB --> ReservationService: Statut mis à jour
+
+ReservationService -> EmailService: Notifier disponibilité
+EmailService --> User: Email "Livre disponible"
+
+ReservationService -> DB: Programmer expiration (7 jours)
+DB --> ReservationService: Expiration programmée
+
+== Phase 4: Retrait du Livre ==
+
+User -> UI: Se présente à la bibliothèque
+note right: Ou utilise l'interface web
+
+UI -> Controller: Demande de transformation en emprunt
+Controller -> ReservationService: Satisfaire réservation
+
+ReservationService -> DB: Vérifier réservation "ready"
+DB --> ReservationService: Réservation valide
+
+ReservationService -> PaymentService: Calculer frais d'emprunt
+PaymentService --> ReservationService: Montant des frais
+
+ReservationService -> DB: Créer emprunt
+DB --> ReservationService: Emprunt créé
+
+ReservationService -> PaymentService: Créer paiement
+PaymentService -> DB: INSERT Payment
+DB --> PaymentService: Paiement créé
+
+ReservationService -> DB: Mettre à jour réservation "fulfilled"
+DB --> ReservationService: Réservation satisfaite
+
+ReservationService -> DB: Décrémenter stock disponible
+DB --> ReservationService: Stock mis à jour
+
+ReservationService --> Controller: Emprunt créé avec succès
+
+Controller -> EmailService: Confirmer emprunt
+EmailService --> User: Email de confirmation d'emprunt
+
+Controller --> UI: Confirmation emprunt
+UI --> User: "Livre emprunté avec succès"
+
+== Phase 5: Gestion des Expirations ==
+
+note over DB: Tâche automatique quotidienne
+
+DB -> ReservationService: Vérifier réservations expirées
+ReservationService -> DB: SELECT réservations "ready" expirées
+DB --> ReservationService: Liste des réservations expirées
+
+loop Pour chaque réservation expirée
+    ReservationService -> DB: Mettre à jour statut "expired"
+    DB --> ReservationService: Statut mis à jour
+    
+    ReservationService -> DB: Trouver réservation suivante
+    DB --> ReservationService: Réservation suivante ou null
+    
+    alt Si réservation suivante existe
+        ReservationService -> DB: Mettre à jour statut "ready"
+        DB --> ReservationService: Nouvelle réservation prête
+        
+        ReservationService -> EmailService: Notifier nouvel utilisateur
+        EmailService --> User: Email "Livre disponible"
+    end
+end
+
+== Phase 6: Annulation par l'Utilisateur ==
+
+User -> UI: Clique "Annuler réservation"
+UI -> Controller: POST /reservations/{id}/cancel/
+
+Controller -> DB: Vérifier propriétaire réservation
+DB --> Controller: Utilisateur autorisé
+
+Controller -> ReservationService: Annuler réservation
+ReservationService -> DB: Mettre à jour statut "cancelled"
+DB --> ReservationService: Réservation annulée
+
+ReservationService -> DB: Trouver réservation suivante
+DB --> ReservationService: Réservation suivante
+
+alt Si livre disponible ET réservation suivante
+    ReservationService -> DB: Mettre à jour statut "ready"
+    DB --> ReservationService: Nouvelle réservation prête
+    
+    ReservationService -> EmailService: Notifier nouvel utilisateur
+    EmailService --> User: Email "Livre disponible"
+end
+
+ReservationService --> Controller: Annulation confirmée
+
+Controller -> EmailService: Confirmer annulation
+EmailService --> User: Email de confirmation d'annulation
+
+Controller --> UI: Redirection avec message
+UI --> User: "Réservation annulée"
+
+@enduml

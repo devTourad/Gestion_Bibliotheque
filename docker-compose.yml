@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: bibliotheque_gpi
+      POSTGRES_USER: gpi_user
+      POSTGRES_PASSWORD: gpi_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gpi_user -d bibliotheque_gpi"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis pour le cache
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Application Django
+  web:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-very-secret-key-change-this-in-production
+      - DATABASE_URL=postgresql://gpi_user:gpi_password@db:5432/bibliotheque_gpi
+      - REDIS_URL=redis://redis:6379/0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.com
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 gpi.wsgi:application"
+
+  # Nginx pour servir les fichiers statiques
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./staticfiles:/var/www/static
+      - ./media:/var/www/media
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+
+  # Worker Celery pour les tâches asynchrones
+  celery:
+    build: .
+    restart: always
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-very-secret-key-change-this-in-production
+      - DATABASE_URL=postgresql://gpi_user:gpi_password@db:5432/bibliotheque_gpi
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A gpi worker -l info
+
+  # Celery Beat pour les tâches programmées
+  celery-beat:
+    build: .
+    restart: always
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-very-secret-key-change-this-in-production
+      - DATABASE_URL=postgresql://gpi_user:gpi_password@db:5432/bibliotheque_gpi
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A gpi beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+volumes:
+  postgres_data:
+  redis_data:

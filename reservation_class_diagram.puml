@@ -1,0 +1,274 @@
+@startuml Modèle de Données - Réservations
+
+title Diagramme de Classes - Système de Réservations
+
+' ===== CLASSES PRINCIPALES =====
+
+class User {
+    +id: Integer
+    +username: String
+    +email: String
+    +category: String
+    +first_name: String
+    +last_name: String
+    +is_active: Boolean
+    +date_joined: DateTime
+    --
+    +get_full_name(): String
+    +can_reserve(): Boolean
+    +has_overdue_books(): Boolean
+    +get_active_reservations(): QuerySet
+}
+
+class Book {
+    +id: Integer
+    +title: String
+    +isbn: String
+    +total_copies: Integer
+    +available_copies: Integer
+    +is_for_sale: Boolean
+    +purchase_price: Decimal
+    --
+    +is_available(): Boolean
+    +has_reservations(): Boolean
+    +get_next_reservation(): Reservation
+    +update_availability(): void
+}
+
+class Reservation {
+    +id: Integer
+    +user: ForeignKey(User)
+    +book: ForeignKey(Book)
+    +reservation_date: DateTime
+    +expiry_date: DateTime
+    +status: String
+    +priority: Integer
+    +notes: Text
+    --
+    +is_active(): Boolean
+    +is_ready(): Boolean
+    +is_expired(): Boolean
+    +can_be_cancelled(): Boolean
+    +get_position_in_queue(): Integer
+    +estimate_wait_time(): Integer
+    +mark_as_ready(): void
+    +mark_as_fulfilled(): void
+    +mark_as_expired(): void
+    +cancel(): void
+}
+
+class Loan {
+    +id: Integer
+    +user: ForeignKey(User)
+    +book: ForeignKey(Book)
+    +loan_date: DateTime
+    +due_date: Date
+    +return_date: DateTime
+    +status: String
+    +renewal_count: Integer
+    --
+    +is_overdue(): Boolean
+    +can_renew(): Boolean
+    +renew(): Boolean
+    +return_book(): void
+}
+
+class Payment {
+    +id: Integer
+    +user: ForeignKey(User)
+    +payment_type: String
+    +amount: Decimal
+    +payment_method: String
+    +status: String
+    +loan: ForeignKey(Loan)
+    +purchase: ForeignKey(BookPurchase)
+    +transaction_id: String
+    +payment_date: DateTime
+    +processed_by: ForeignKey(User)
+    --
+    +mark_as_completed(): void
+    +mark_as_failed(): void
+    +refund(): Boolean
+}
+
+class BookPurchase {
+    +id: Integer
+    +user: ForeignKey(User)
+    +book: ForeignKey(Book)
+    +quantity: Integer
+    +unit_price: Decimal
+    +discount_percentage: Decimal
+    +total_price: Decimal
+    +purchase_date: DateTime
+    +status: String
+    --
+    +calculate_total(): Decimal
+    +apply_discount(): void
+}
+
+class LibraryConfig {
+    +LOAN_DURATIONS: Dict
+    +MAX_BOOKS: Dict
+    +LOAN_FEES: Dict
+    +DEPOSIT_AMOUNTS: Dict
+    +RESERVATION_DURATION: Integer
+    --
+    +get_loan_duration(category): Integer
+    +get_max_books(category): Integer
+    +get_loan_fee(category): Decimal
+    +get_deposit_amount(category): Decimal
+}
+
+' ===== ÉNUMÉRATIONS =====
+
+enum ReservationStatus {
+    ACTIVE
+    READY
+    FULFILLED
+    EXPIRED
+    CANCELLED
+}
+
+enum UserCategory {
+    STUDENT
+    TEACHER
+    STAFF
+    EXTERNAL
+}
+
+enum PaymentType {
+    PURCHASE
+    LOAN_FEE
+    DEPOSIT
+    FINE
+    RENEWAL_FEE
+    LATE_FEE
+    DAMAGE_FEE
+    REFUND
+}
+
+enum LoanStatus {
+    BORROWED
+    RETURNED
+    OVERDUE
+    LOST
+}
+
+' ===== RELATIONS =====
+
+User ||--o{ Reservation : "fait"
+User ||--o{ Loan : "emprunte"
+User ||--o{ Payment : "effectue"
+User ||--o{ BookPurchase : "achète"
+
+Book ||--o{ Reservation : "est réservé"
+Book ||--o{ Loan : "est emprunté"
+Book ||--o{ BookPurchase : "est acheté"
+
+Reservation }o--|| ReservationStatus : "a un statut"
+User }o--|| UserCategory : "appartient à"
+Payment }o--|| PaymentType : "est de type"
+Loan }o--|| LoanStatus : "a un statut"
+
+Loan ||--o{ Payment : "génère"
+BookPurchase ||--o{ Payment : "nécessite"
+
+' ===== SERVICES ET CONTRÔLEURS =====
+
+class ReservationService {
+    +create_reservation(user, book): Reservation
+    +cancel_reservation(reservation): Boolean
+    +fulfill_reservation(reservation): Loan
+    +calculate_queue_position(book, user): Integer
+    +estimate_wait_time(book): Integer
+    +get_user_reservations(user): QuerySet
+    +process_book_return(book): void
+    +expire_old_reservations(): void
+    +notify_availability(reservation): void
+}
+
+class PaymentService {
+    +create_loan_payment(loan): Payment
+    +create_purchase_payment(purchase): Payment
+    +calculate_outstanding_fees(user): Decimal
+    +process_payment(payment): Boolean
+    +can_user_borrow(user): Boolean
+}
+
+class NotificationService {
+    +send_reservation_confirmation(reservation): void
+    +send_availability_notification(reservation): void
+    +send_expiration_warning(reservation): void
+    +send_cancellation_confirmation(reservation): void
+}
+
+' ===== RELATIONS SERVICES =====
+
+ReservationService ..> Reservation : "gère"
+ReservationService ..> Loan : "crée"
+ReservationService ..> NotificationService : "utilise"
+ReservationService ..> PaymentService : "utilise"
+
+PaymentService ..> Payment : "gère"
+PaymentService ..> LibraryConfig : "utilise"
+
+NotificationService ..> User : "notifie"
+
+' ===== CONTRAINTES =====
+
+note right of Reservation
+    **Contraintes:**
+    • Un utilisateur ne peut avoir qu'une 
+      réservation active par livre
+    • Pas de réservation si livre disponible
+    • Pas de réservation si emprunt en cours
+    • Pas de réservation si livres en retard
+    
+    **Règles métier:**
+    • File d'attente FIFO
+    • Expiration automatique après 7 jours
+    • Notification automatique par email
+    • Priorité modifiable par admin
+end note
+
+note left of User
+    **Catégories et privilèges:**
+    • **Student**: Gratuit, 3 livres, 14j
+    • **Teacher**: Gratuit, 10 livres, 30j
+    • **Staff**: Gratuit, 5 livres, 21j
+    • **External**: 2€, 2 livres, 7j
+    
+    **Restrictions:**
+    • Blocage si livres en retard
+    • Limite selon catégorie
+    • Caution selon catégorie
+end note
+
+note bottom of Payment
+    **Types de paiements:**
+    • Frais d'emprunt (selon catégorie)
+    • Caution (remboursable)
+    • Frais de retard (calculés automatiquement)
+    • Achats de livres (avec remises)
+    • Frais de renouvellement
+    • Amendes diverses
+end note
+
+' ===== MÉTHODES IMPORTANTES =====
+
+note right of ReservationService
+    **Algorithme de file d'attente:**
+    1. Tri par date de réservation (FIFO)
+    2. Application des priorités admin
+    3. Vérification des conditions utilisateur
+    4. Notification du premier éligible
+    5. Mise à jour des positions
+    
+    **Gestion des expirations:**
+    • Tâche quotidienne automatique
+    • Identification des réservations expirées
+    • Traitement de la file d'attente
+    • Notifications aux utilisateurs suivants
+end note
+
+@enduml

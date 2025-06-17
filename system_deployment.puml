@@ -1,0 +1,264 @@
+@startuml Architecture du Système - Diagramme de Déploiement
+
+title Architecture Technique - Système de Gestion de Bibliothèque
+
+!define RECTANGLE class
+
+' ===== NŒUDS PHYSIQUES =====
+
+node "Serveur Web" as WebServer {
+    component "Nginx" as Nginx {
+        port "HTTP/HTTPS" as WebPort
+    }
+    
+    component "Application Django" as Django {
+        component "Views" as Views
+        component "Models" as Models
+        component "Services" as Services
+        component "Templates" as Templates
+        port "WSGI" as WSGIPort
+    }
+    
+    component "Gunicorn" as Gunicorn
+    
+    component "Redis Cache" as Redis {
+        database "Cache Sessions" as SessionCache
+        database "Cache Données" as DataCache
+    }
+}
+
+node "Serveur Base de Données" as DBServer {
+    database "PostgreSQL" as PostgreSQL {
+        schema "Utilisateurs" as UserSchema
+        schema "Livres" as BookSchema
+        schema "Emprunts" as LoanSchema
+        schema "Réservations" as ReservationSchema
+        schema "Paiements" as PaymentSchema
+    }
+}
+
+node "Serveur Email" as EmailServer {
+    component "Service SMTP" as SMTP {
+        component "Notifications" as EmailNotifications
+        component "Confirmations" as EmailConfirmations
+    }
+}
+
+node "Serveur Fichiers" as FileServer {
+    folder "Médias" as MediaFolder {
+        folder "Couvertures" as BookCovers
+        folder "Documents" as Documents
+    }
+    
+    folder "Statiques" as StaticFolder {
+        folder "CSS" as CSS
+        folder "JavaScript" as JS
+        folder "Images" as Images
+    }
+}
+
+node "Serveur de Tâches" as TaskServer {
+    component "Celery Worker" as CeleryWorker
+    component "Celery Beat" as CeleryBeat
+    database "Message Broker" as MessageBroker
+}
+
+' ===== CLIENTS =====
+
+node "Navigateur Utilisateur" as UserBrowser {
+    component "Interface Web" as WebInterface
+    component "JavaScript Client" as JSClient
+}
+
+node "Poste Bibliothécaire" as LibrarianWorkstation {
+    component "Interface Admin" as AdminInterface
+    component "Scanner Code-barres" as BarcodeScanner
+}
+
+node "Application Mobile" as MobileApp {
+    component "App Native" as NativeApp
+    component "API Client" as APIClient
+}
+
+' ===== CONNEXIONS RÉSEAU =====
+
+UserBrowser --> WebPort : HTTPS
+LibrarianWorkstation --> WebPort : HTTPS
+MobileApp --> WebPort : HTTPS/API
+
+Nginx --> Gunicorn : Proxy
+Gunicorn --> Django : WSGI
+
+Django --> PostgreSQL : SQL
+Django --> Redis : Cache
+Django --> SMTP : Email
+Django --> MediaFolder : Upload/Download
+Django --> StaticFolder : Assets
+
+CeleryWorker --> PostgreSQL : SQL
+CeleryWorker --> SMTP : Email
+CeleryBeat --> MessageBroker : Schedule
+
+Django --> MessageBroker : Tasks
+
+' ===== DÉTAILS DES COMPOSANTS =====
+
+package "Services Django" as DjangoServices {
+    RECTANGLE ReservationService {
+        +create_reservation()
+        +process_queue()
+        +notify_users()
+        +expire_reservations()
+    }
+    
+    RECTANGLE PaymentService {
+        +calculate_fees()
+        +process_payments()
+        +track_transactions()
+    }
+    
+    RECTANGLE NotificationService {
+        +send_emails()
+        +schedule_reminders()
+        +log_notifications()
+    }
+    
+    RECTANGLE BookService {
+        +manage_inventory()
+        +update_availability()
+        +search_catalog()
+    }
+}
+
+package "Tâches Automatiques" as AutoTasks {
+    RECTANGLE "Expiration Réservations" as ExpireTask {
+        +run_daily()
+        +check_expired()
+        +update_queue()
+    }
+    
+    RECTANGLE "Rappels Échéances" as ReminderTask {
+        +run_daily()
+        +find_due_books()
+        +send_reminders()
+    }
+    
+    RECTANGLE "Calcul Frais Retard" as LateFeeTask {
+        +run_daily()
+        +calculate_fees()
+        +create_payments()
+    }
+    
+    RECTANGLE "Sauvegarde Données" as BackupTask {
+        +run_weekly()
+        +backup_database()
+        +cleanup_old_backups()
+    }
+}
+
+' ===== SÉCURITÉ =====
+
+package "Sécurité" as Security {
+    component "Authentification" as Auth {
+        +login/logout
+        +session_management
+        +password_hashing
+    }
+    
+    component "Autorisation" as Authz {
+        +role_based_access
+        +permission_checks
+        +admin_privileges
+    }
+    
+    component "Protection CSRF" as CSRF
+    component "Validation Données" as DataValidation
+    component "Chiffrement HTTPS" as HTTPS
+}
+
+' ===== MONITORING =====
+
+package "Monitoring" as Monitoring {
+    component "Logs Application" as AppLogs
+    component "Métriques Performance" as Metrics
+    component "Alertes Système" as Alerts
+    component "Monitoring Base" as DBMonitoring
+}
+
+' ===== CONFIGURATION =====
+
+note right of WebServer
+    **Configuration Nginx:**
+    • Proxy vers Gunicorn
+    • Gestion fichiers statiques
+    • Compression gzip
+    • Rate limiting
+    • SSL/TLS termination
+    
+    **Configuration Django:**
+    • DEBUG = False (production)
+    • ALLOWED_HOSTS configuré
+    • Base de données PostgreSQL
+    • Cache Redis
+    • Email SMTP
+end note
+
+note right of DBServer
+    **Configuration PostgreSQL:**
+    • Connexions persistantes
+    • Index optimisés
+    • Sauvegarde automatique
+    • Réplication (optionnel)
+    • Monitoring performances
+    
+    **Schémas principaux:**
+    • auth_user (utilisateurs)
+    • library_book (livres)
+    • library_loan (emprunts)
+    • library_reservation (réservations)
+    • library_payment (paiements)
+end note
+
+note bottom
+    **Flux de données principaux:**
+    
+    **Réservation:**
+    1. Utilisateur → Interface Web → Django Views
+    2. Django → Services → Validation règles métier
+    3. Django → PostgreSQL → Création réservation
+    4. Django → Celery → Tâche notification
+    5. Celery → SMTP → Email utilisateur
+    
+    **Notification disponibilité:**
+    1. Retour livre → Django → Mise à jour stock
+    2. Django → ReservationService → Traitement file
+    3. Service → PostgreSQL → Mise à jour statuts
+    4. Service → Celery → Tâche notification
+    5. Celery → SMTP → Email disponibilité
+    
+    **Expiration automatique:**
+    1. Celery Beat → Tâche quotidienne
+    2. Tâche → PostgreSQL → Recherche expirées
+    3. Tâche → ReservationService → Traitement
+    4. Service → PostgreSQL → Mise à jour statuts
+    5. Service → SMTP → Notifications
+end note
+
+' ===== PERFORMANCES =====
+
+note left of Redis
+    **Optimisations Cache:**
+    • Sessions utilisateurs
+    • Requêtes fréquentes
+    • Résultats recherche
+    • Compteurs statistiques
+    • TTL configurables
+    
+    **Stratégie Cache:**
+    • Cache-aside pattern
+    • Invalidation sélective
+    • Compression données
+    • Clustering (si nécessaire)
+end note
+
+@enduml

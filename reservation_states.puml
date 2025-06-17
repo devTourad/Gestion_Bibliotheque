@@ -1,0 +1,168 @@
+@startuml États des Réservations - Diagramme d'État
+
+title Cycle de Vie d'une Réservation
+
+[*] --> Demande : Utilisateur clique "Réserver"
+
+state Demande {
+    [*] --> Vérifications
+    Vérifications --> VérificationOK : Toutes conditions remplies
+    Vérifications --> VérificationKO : Condition non remplie
+    VérificationKO --> [*] : Afficher erreur
+}
+
+VérificationOK --> Confirmation : Afficher page confirmation
+
+state Confirmation {
+    [*] --> AttentConfirmation
+    AttentConfirmation --> Confirmé : Utilisateur confirme
+    AttentConfirmation --> Annulé : Utilisateur annule
+    Annulé --> [*]
+}
+
+Confirmé --> Active : Créer réservation
+
+state Active {
+    Active : Réservation en file d'attente
+    Active : Position calculée
+    Active : Délai estimé
+    Active : Email de confirmation envoyé
+    
+    Active --> Ready : Livre devient disponible
+    Active --> Cancelled : Utilisateur annule
+    Active --> Cancelled : Admin annule
+}
+
+state Ready {
+    Ready : Livre disponible
+    Ready : Utilisateur notifié
+    Ready : 7 jours pour retirer
+    Ready : entry / Envoyer notification
+    Ready : entry / Programmer expiration
+    
+    Ready --> Fulfilled : Livre retiré
+    Ready --> Expired : 7 jours écoulés
+    Ready --> Cancelled : Utilisateur annule
+}
+
+state Fulfilled {
+    Fulfilled : Réservation satisfaite
+    Fulfilled : Emprunt créé
+    Fulfilled : Stock mis à jour
+    Fulfilled : entry / Créer emprunt
+    Fulfilled : entry / Traiter paiement
+    Fulfilled : entry / Envoyer confirmation
+}
+
+state Expired {
+    Expired : Réservation expirée
+    Expired : Non retirée dans les délais
+    Expired : entry / Traiter réservation suivante
+    Expired : entry / Envoyer notification expiration
+}
+
+state Cancelled {
+    Cancelled : Réservation annulée
+    Cancelled : Par utilisateur ou admin
+    Cancelled : entry / Traiter réservation suivante
+    Cancelled : entry / Envoyer confirmation annulation
+}
+
+' Transitions vers états finaux
+Fulfilled --> [*]
+Expired --> [*]
+Cancelled --> [*]
+
+' ===== ÉVÉNEMENTS ET ACTIONS =====
+
+note right of Active
+    **Événements possibles:**
+    • Livre retourné
+    • Annulation utilisateur
+    • Annulation admin
+    • Modification priorité
+    
+    **Actions automatiques:**
+    • Calcul position file
+    • Estimation délai
+    • Surveillance disponibilité
+end note
+
+note right of Ready
+    **Événements possibles:**
+    • Retrait livre (→ Fulfilled)
+    • Expiration délai (→ Expired)
+    • Annulation (→ Cancelled)
+    
+    **Actions automatiques:**
+    • Notification email
+    • Timer expiration (7j)
+    • Vérification quotidienne
+end note
+
+note bottom
+    **Règles de transition:**
+    
+    **Active → Ready:**
+    • Livre devient disponible
+    • Première réservation dans la file
+    • Notification automatique
+    
+    **Ready → Fulfilled:**
+    • Utilisateur se présente
+    • Réservation valide
+    • Paiement traité si nécessaire
+    • Emprunt créé
+    
+    **Ready → Expired:**
+    • 7 jours écoulés
+    • Aucun retrait
+    • Traitement automatique
+    • Réservation suivante activée
+    
+    **Active/Ready → Cancelled:**
+    • Action utilisateur
+    • Action administrateur
+    • Réorganisation file d'attente
+end note
+
+' ===== ACTIONS PARALLÈLES =====
+
+state "Processus Automatiques" as Auto {
+    state "Surveillance Retours" as Watch {
+        Watch : Écoute événements retour
+        Watch : Identifie livres avec réservations
+        Watch : Active première réservation
+    }
+    
+    state "Gestion Expirations" as Expire {
+        Expire : Vérification quotidienne
+        Expire : Identification réservations expirées
+        Expire : Traitement file d'attente
+    }
+    
+    state "Notifications" as Notify {
+        Notify : Envoi emails automatiques
+        Notify : Confirmations
+        Notify : Rappels
+        Notify : Alertes expiration
+    }
+}
+
+' ===== CONTRAINTES ET INVARIANTS =====
+
+note left of Active
+    **Contraintes:**
+    • 1 seule réservation active par livre/utilisateur
+    • Pas de réservation si emprunt en cours
+    • Pas de réservation si retards
+    • File d'attente FIFO
+    
+    **Invariants:**
+    • Position > 0
+    • Date création < Date expiration
+    • Utilisateur authentifié
+    • Livre existe et indisponible
+end note
+
+@enduml

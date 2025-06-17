@@ -1,0 +1,210 @@
+@startuml Library Management System - Use Cases
+
+!define RECTANGLE class
+
+title Système de Gestion de Bibliothèque - Diagramme de Cas d'Utilisation
+
+' Acteurs
+actor "Visiteur" as Visitor
+actor "Utilisateur\nAuthentifié" as User
+actor "Étudiant" as Student
+actor "Enseignant" as Teacher
+actor "Personnel" as Staff
+actor "Externe" as External
+actor "Bibliothécaire" as Librarian
+actor "Administrateur" as Admin
+
+' Héritage des acteurs
+User <|-- Student
+User <|-- Teacher
+User <|-- Staff
+User <|-- External
+Librarian <|-- Admin
+
+' Package principal
+package "Système de Gestion de Bibliothèque" {
+
+    ' ===== GESTION DES LIVRES =====
+    package "Gestion des Livres" {
+        usecase "Consulter le catalogue" as UC1
+        usecase "Rechercher des livres" as UC2
+        usecase "Voir détails d'un livre" as UC3
+        usecase "Consulter la galerie" as UC4
+        usecase "Ajouter un livre" as UC5
+        usecase "Modifier un livre" as UC6
+        usecase "Supprimer un livre" as UC7
+        usecase "Gérer les couvertures" as UC8
+        usecase "Upload en masse" as UC9
+        usecase "Recherche d'images en ligne" as UC10
+    }
+
+    ' ===== GESTION DES EMPRUNTS =====
+    package "Gestion des Emprunts" {
+        usecase "Emprunter un livre" as UC11
+        usecase "Consulter mes emprunts" as UC12
+        usecase "Renouveler un emprunt" as UC13
+        usecase "Retourner un livre" as UC14
+        usecase "Gérer les emprunts (Admin)" as UC15
+        usecase "Créer emprunt rapide" as UC16
+        usecase "Calculer frais de retard" as UC17
+    }
+
+    ' ===== GESTION DES RÉSERVATIONS =====
+    package "Gestion des Réservations" {
+        usecase "Réserver un livre" as UC18
+        usecase "Consulter mes réservations" as UC19
+        usecase "Annuler une réservation" as UC20
+        usecase "Gérer les réservations (Admin)" as UC21
+        usecase "Satisfaire une réservation" as UC22
+        usecase "Calculer position file d'attente" as UC23
+    }
+
+    ' ===== GESTION DES ACHATS =====
+    package "Gestion des Achats" {
+        usecase "Acheter un livre" as UC24
+        usecase "Consulter mes achats" as UC25
+        usecase "Voir détail d'un achat" as UC26
+        usecase "Gérer les commandes (Admin)" as UC27
+        usecase "Calculer remises" as UC28
+    }
+
+    ' ===== GESTION DES PAIEMENTS =====
+    package "Gestion des Paiements" {
+        usecase "Consulter mes paiements" as UC29
+        usecase "Effectuer un paiement" as UC30
+        usecase "Traiter un paiement" as UC31
+        usecase "Calculer frais d'emprunt" as UC32
+        usecase "Gérer les cautions" as UC33
+        usecase "Rembourser" as UC34
+        usecase "Voir frais impayés" as UC35
+    }
+
+    ' ===== GESTION DES UTILISATEURS =====
+    package "Gestion des Utilisateurs" {
+        usecase "S'inscrire" as UC36
+        usecase "Se connecter" as UC37
+        usecase "Se déconnecter" as UC38
+        usecase "Consulter tableau de bord" as UC39
+        usecase "Gérer profil utilisateur" as UC40
+        usecase "Gérer les utilisateurs (Admin)" as UC41
+        usecase "Voir statistiques personnelles" as UC42
+    }
+
+    ' ===== ADMINISTRATION =====
+    package "Administration" {
+        usecase "Tableau de bord admin" as UC43
+        usecase "Voir statistiques globales" as UC44
+        usecase "Gérer la configuration" as UC45
+        usecase "Exporter des données" as UC46
+        usecase "Gérer les genres/auteurs" as UC47
+        usecase "Maintenance système" as UC48
+    }
+
+    ' ===== NOTIFICATIONS =====
+    package "Notifications" {
+        usecase "Recevoir notifications" as UC49
+        usecase "Rappels d'échéance" as UC50
+        usecase "Alertes de disponibilité" as UC51
+        usecase "Notifications de retard" as UC52
+    }
+}
+
+' ===== RELATIONS VISITEUR =====
+Visitor --> UC1 : consulte
+Visitor --> UC2 : recherche
+Visitor --> UC3 : consulte
+Visitor --> UC4 : parcourt
+Visitor --> UC36 : s'inscrit
+
+' ===== RELATIONS UTILISATEUR AUTHENTIFIÉ =====
+User --> UC37 : se connecte
+User --> UC38 : se déconnecte
+User --> UC39 : consulte
+User --> UC42 : consulte
+User --> UC11 : emprunte
+User --> UC12 : consulte
+User --> UC13 : renouvelle
+User --> UC18 : réserve
+User --> UC19 : consulte
+User --> UC20 : annule
+User --> UC24 : achète
+User --> UC25 : consulte
+User --> UC26 : consulte
+User --> UC29 : consulte
+User --> UC30 : effectue
+User --> UC35 : consulte
+User --> UC49 : reçoit
+User --> UC50 : reçoit
+User --> UC51 : reçoit
+User --> UC52 : reçoit
+
+' ===== RELATIONS BIBLIOTHÉCAIRE =====
+Librarian --> UC5 : ajoute
+Librarian --> UC6 : modifie
+Librarian --> UC7 : supprime
+Librarian --> UC8 : gère
+Librarian --> UC9 : effectue
+Librarian --> UC10 : utilise
+Librarian --> UC14 : traite
+Librarian --> UC15 : gère
+Librarian --> UC16 : crée
+Librarian --> UC21 : gère
+Librarian --> UC22 : satisfait
+Librarian --> UC27 : gère
+Librarian --> UC31 : traite
+Librarian --> UC33 : gère
+Librarian --> UC34 : effectue
+Librarian --> UC41 : gère
+
+' ===== RELATIONS ADMINISTRATEUR =====
+Admin --> UC43 : consulte
+Admin --> UC44 : consulte
+Admin --> UC45 : configure
+Admin --> UC46 : exporte
+Admin --> UC47 : gère
+Admin --> UC48 : effectue
+
+' ===== RELATIONS SYSTÈME (INCLUDE/EXTEND) =====
+UC11 ..> UC32 : <<include>>
+UC11 ..> UC33 : <<extend>>
+UC13 ..> UC32 : <<include>>
+UC18 ..> UC23 : <<include>>
+UC24 ..> UC28 : <<include>>
+UC24 ..> UC30 : <<include>>
+UC14 ..> UC17 : <<extend>>
+UC22 ..> UC11 : <<include>>
+
+' ===== CONTRAINTES PAR CATÉGORIE =====
+note right of Student
+  - Emprunts gratuits
+  - 3 livres max
+  - 14 jours
+  - 10% remise achats
+  - Caution 10€
+end note
+
+note right of Teacher
+  - Emprunts gratuits
+  - 10 livres max
+  - 30 jours
+  - 15% remise achats
+  - Pas de caution
+end note
+
+note right of Staff
+  - Emprunts gratuits
+  - 5 livres max
+  - 21 jours
+  - 15% remise achats
+  - Pas de caution
+end note
+
+note right of External
+  - Emprunts 2€
+  - 2 livres max
+  - 7 jours
+  - Pas de remise
+  - Caution 20€
+end note
+
+@enduml

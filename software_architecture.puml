@@ -1,0 +1,281 @@
+@startuml Architecture Logicielle - Diagramme de Composants
+
+title Architecture Logicielle - Système de Gestion de Bibliothèque
+
+!define RECTANGLE class
+
+' ===== COUCHE PRÉSENTATION =====
+
+package "Couche Présentation" as PresentationLayer {
+    
+    component "Templates Django" as Templates {
+        component "Base Template" as BaseTemplate
+        component "Book Templates" as BookTemplates
+        component "User Templates" as UserTemplates
+        component "Admin Templates" as AdminTemplates
+        component "Reservation Templates" as ReservationTemplates
+        component "Payment Templates" as PaymentTemplates
+    }
+    
+    component "Static Assets" as StaticAssets {
+        component "CSS Styles" as CSS
+        component "JavaScript" as JavaScript
+        component "Images" as Images
+        component "Fonts" as Fonts
+    }
+    
+    component "Forms Django" as Forms {
+        component "User Forms" as UserForms
+        component "Book Forms" as BookForms
+        component "Search Forms" as SearchForms
+        component "Payment Forms" as PaymentForms
+    }
+}
+
+' ===== COUCHE CONTRÔLEUR =====
+
+package "Couche Contrôleur" as ControllerLayer {
+    
+    component "Views Django" as Views {
+        component "Book Views" as BookViews
+        component "User Views" as UserViews
+        component "Loan Views" as LoanViews
+        component "Reservation Views" as ReservationViews
+        component "Payment Views" as PaymentViews
+        component "Admin Views" as AdminViews
+        component "API Views" as APIViews
+    }
+    
+    component "URL Routing" as URLRouting {
+        component "Main URLs" as MainURLs
+        component "App URLs" as AppURLs
+        component "API URLs" as APIURLs
+    }
+    
+    component "Middleware" as Middleware {
+        component "Authentication" as AuthMiddleware
+        component "CSRF Protection" as CSRFMiddleware
+        component "Session Management" as SessionMiddleware
+        component "Security Headers" as SecurityMiddleware
+    }
+}
+
+' ===== COUCHE MÉTIER =====
+
+package "Couche Métier" as BusinessLayer {
+    
+    component "Services" as Services {
+        component "ReservationService" as ReservationService {
+            +create_reservation()
+            +cancel_reservation()
+            +fulfill_reservation()
+            +calculate_queue_position()
+            +estimate_wait_time()
+            +process_book_return()
+            +expire_old_reservations()
+        }
+        
+        component "PaymentService" as PaymentService {
+            +create_loan_payment()
+            +create_purchase_payment()
+            +calculate_outstanding_fees()
+            +process_payment()
+            +can_user_borrow()
+        }
+        
+        component "NotificationService" as NotificationService {
+            +send_reservation_confirmation()
+            +send_availability_notification()
+            +send_expiration_warning()
+            +send_cancellation_confirmation()
+        }
+        
+        component "BookService" as BookService {
+            +search_books()
+            +update_availability()
+            +manage_inventory()
+            +get_recommendations()
+        }
+        
+        component "UserService" as UserService {
+            +authenticate_user()
+            +manage_permissions()
+            +get_user_statistics()
+            +check_borrowing_eligibility()
+        }
+    }
+    
+    component "Business Rules" as BusinessRules {
+        component "Reservation Rules" as ReservationRules
+        component "Loan Rules" as LoanRules
+        component "Payment Rules" as PaymentRules
+        component "User Category Rules" as UserCategoryRules
+    }
+    
+    component "Validators" as Validators {
+        component "Payment Validator" as PaymentValidator
+        component "Reservation Validator" as ReservationValidator
+        component "User Validator" as UserValidator
+        component "Book Validator" as BookValidator
+    }
+}
+
+' ===== COUCHE DONNÉES =====
+
+package "Couche Données" as DataLayer {
+    
+    component "Models Django" as Models {
+        component "User Model" as UserModel
+        component "Book Model" as BookModel
+        component "Loan Model" as LoanModel
+        component "Reservation Model" as ReservationModel
+        component "Payment Model" as PaymentModel
+        component "Configuration Model" as ConfigModel
+    }
+    
+    component "Database Access" as DatabaseAccess {
+        component "ORM Django" as DjangoORM
+        component "Query Optimization" as QueryOptimization
+        component "Database Migrations" as Migrations
+        component "Database Indexes" as Indexes
+    }
+    
+    component "External APIs" as ExternalAPIs {
+        component "Book Cover API" as BookCoverAPI
+        component "Email Service API" as EmailAPI
+        component "Payment Gateway API" as PaymentGatewayAPI
+    }
+}
+
+' ===== COUCHE INFRASTRUCTURE =====
+
+package "Couche Infrastructure" as InfrastructureLayer {
+    
+    component "Cache System" as CacheSystem {
+        component "Redis Cache" as RedisCache
+        component "Session Cache" as SessionCache
+        component "Query Cache" as QueryCache
+    }
+    
+    component "Task Queue" as TaskQueue {
+        component "Celery Workers" as CeleryWorkers
+        component "Celery Beat" as CeleryBeat
+        component "Message Broker" as MessageBroker
+    }
+    
+    component "File Storage" as FileStorage {
+        component "Media Files" as MediaFiles
+        component "Static Files" as StaticFiles
+        component "Backup Storage" as BackupStorage
+    }
+    
+    component "Logging & Monitoring" as LoggingMonitoring {
+        component "Application Logs" as AppLogs
+        component "Error Tracking" as ErrorTracking
+        component "Performance Monitoring" as PerfMonitoring
+    }
+}
+
+' ===== RELATIONS ENTRE COUCHES =====
+
+' Présentation → Contrôleur
+Templates --> Views : "utilise"
+Forms --> Views : "traite"
+StaticAssets --> Templates : "inclut"
+
+' Contrôleur → Métier
+Views --> Services : "appelle"
+Views --> BusinessRules : "applique"
+Views --> Validators : "valide"
+URLRouting --> Views : "route vers"
+Middleware --> Views : "intercepte"
+
+' Métier → Données
+Services --> Models : "manipule"
+BusinessRules --> Models : "contraint"
+Validators --> Models : "valide"
+Services --> ExternalAPIs : "utilise"
+
+' Données → Infrastructure
+Models --> DatabaseAccess : "persiste via"
+DatabaseAccess --> CacheSystem : "cache avec"
+Services --> TaskQueue : "planifie avec"
+Models --> FileStorage : "stocke dans"
+
+' ===== FLUX DE DONNÉES RÉSERVATION =====
+
+note right of ReservationService
+    **Flux de création réservation:**
+    1. ReservationViews reçoit requête
+    2. Validation via ReservationValidator
+    3. Application ReservationRules
+    4. ReservationService.create_reservation()
+    5. Persistance via ReservationModel
+    6. Notification via NotificationService
+    7. Tâche asynchrone via TaskQueue
+end note
+
+' ===== PATTERNS ARCHITECTURAUX =====
+
+note left of Services
+    **Patterns utilisés:**
+    • **Service Layer**: Logique métier centralisée
+    • **Repository Pattern**: Accès données abstrait
+    • **Observer Pattern**: Notifications événements
+    • **Strategy Pattern**: Règles métier modulaires
+    • **Factory Pattern**: Création objets complexes
+    • **Decorator Pattern**: Middleware Django
+end note
+
+' ===== PRINCIPES SOLID =====
+
+note bottom
+    **Respect des principes SOLID:**
+    
+    **Single Responsibility:**
+    • Chaque service a une responsabilité unique
+    • Séparation claire des couches
+    
+    **Open/Closed:**
+    • Services extensibles via héritage
+    • Règles métier configurables
+    
+    **Liskov Substitution:**
+    • Interfaces cohérentes
+    • Polymorphisme respecté
+    
+    **Interface Segregation:**
+    • APIs spécialisées par domaine
+    • Dépendances minimales
+    
+    **Dependency Inversion:**
+    • Injection de dépendances
+    • Abstractions vs implémentations
+end note
+
+' ===== SÉCURITÉ =====
+
+package "Sécurité Transversale" as Security {
+    component "Authentication" as Authentication
+    component "Authorization" as Authorization
+    component "Data Validation" as DataValidation
+    component "CSRF Protection" as CSRFProtection
+    component "SQL Injection Protection" as SQLProtection
+}
+
+Security --> ControllerLayer : "protège"
+Security --> BusinessLayer : "sécurise"
+Security --> DataLayer : "valide"
+
+' ===== CONFIGURATION =====
+
+component "Configuration Management" as ConfigManagement {
+    component "Environment Variables" as EnvVars
+    component "Settings Files" as SettingsFiles
+    component "Feature Flags" as FeatureFlags
+}
+
+ConfigManagement --> BusinessLayer : "configure"
+ConfigManagement --> InfrastructureLayer : "paramètre"
+
+@enduml

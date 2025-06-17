@@ -1,0 +1,182 @@
+@startuml Workflow des Réservations - Diagramme d'Activité
+
+title Workflow Complet du Système de Réservations
+
+|Utilisateur|
+start
+:Consulte un livre;
+:Clique sur "Réserver";
+
+|Système|
+:Vérifier authentification;
+if (Utilisateur connecté ?) then (non)
+    :Rediriger vers connexion;
+    stop
+endif
+
+:Vérifier disponibilité livre;
+if (Livre disponible ?) then (oui)
+    :Proposer emprunt direct;
+    stop
+endif
+
+:Vérifier réservation existante;
+if (Réservation active existe ?) then (oui)
+    :Afficher message d'erreur;
+    stop
+endif
+
+:Vérifier emprunt en cours;
+if (Livre déjà emprunté ?) then (oui)
+    :Afficher message d'erreur;
+    stop
+endif
+
+:Vérifier livres en retard;
+if (Livres en retard ?) then (oui)
+    :Bloquer et demander retour;
+    stop
+endif
+
+:Calculer position file d'attente;
+:Estimer délai d'attente;
+:Afficher page de confirmation;
+
+|Utilisateur|
+:Consulter détails réservation;
+if (Confirmer réservation ?) then (non)
+    :Retourner aux détails livre;
+    stop
+endif
+
+|Système|
+:Créer réservation;
+:Définir date d'expiration;
+:Envoyer email confirmation;
+:Rediriger vers "Mes réservations";
+
+note right
+    État: "active"
+    Expiration: +7 jours
+end note
+
+' ===== PROCESSUS DE NOTIFICATION =====
+
+|#LightBlue|Processus Automatique|
+fork
+    :Surveiller retours de livres;
+    repeat
+        :Vérifier livres retournés;
+        if (Livre avec réservations ?) then (oui)
+            :Trouver première réservation;
+            :Changer statut à "ready";
+            :Envoyer notification utilisateur;
+            :Programmer expiration (7j);
+        endif
+    repeat while (Système actif)
+fork again
+    :Vérifier expirations quotidiennes;
+    repeat
+        :Chercher réservations expirées;
+        if (Réservations expirées ?) then (oui)
+            :Changer statut à "expired";
+            :Traiter réservation suivante;
+            if (Réservation suivante ?) then (oui)
+                :Changer statut à "ready";
+                :Notifier nouvel utilisateur;
+            endif
+        endif
+    repeat while (Système actif)
+end fork
+
+' ===== PROCESSUS DE RETRAIT =====
+
+|Utilisateur|
+:Recevoir notification;
+:Se présenter à la bibliothèque;
+
+|Bibliothécaire|
+:Vérifier réservation "ready";
+if (Réservation valide ?) then (non)
+    :Informer utilisateur;
+    stop
+endif
+
+:Calculer frais d'emprunt;
+if (Frais à payer ?) then (oui)
+    :Traiter paiement;
+    if (Paiement réussi ?) then (non)
+        :Annuler transaction;
+        stop
+    endif
+endif
+
+:Créer emprunt;
+:Marquer réservation "fulfilled";
+:Mettre à jour stock;
+:Remettre livre à l'utilisateur;
+
+|Système|
+:Envoyer confirmation emprunt;
+
+' ===== PROCESSUS D'ANNULATION =====
+
+|Utilisateur|
+fork again
+    :Consulter "Mes réservations";
+    :Cliquer "Annuler";
+    
+    |Système|
+    :Vérifier autorisation;
+    :Changer statut à "cancelled";
+    if (Livre disponible ?) then (oui)
+        :Traiter réservation suivante;
+        if (Réservation suivante ?) then (oui)
+            :Changer statut à "ready";
+            :Notifier nouvel utilisateur;
+        endif
+    endif
+    :Envoyer confirmation annulation;
+end fork
+
+' ===== GESTION ADMINISTRATIVE =====
+
+|Bibliothécaire|
+fork again
+    :Consulter toutes réservations;
+    :Filtrer/Rechercher;
+    
+    if (Action à effectuer ?) then (Satisfaire)
+        :Forcer satisfaction réservation;
+        :Créer emprunt manuel;
+    elseif (Annuler) then
+        :Annuler réservation;
+        :Traiter file d'attente;
+    elseif (Modifier priorité) then
+        :Changer ordre file d'attente;
+    endif
+    
+    :Mettre à jour système;
+end fork
+
+stop
+
+' ===== LÉGENDE DES ÉTATS =====
+note bottom
+    **États des réservations:**
+    • **active**: En attente dans la file d'attente
+    • **ready**: Livre disponible, utilisateur notifié (7j pour retirer)
+    • **fulfilled**: Réservation transformée en emprunt
+    • **expired**: Expirée car non retirée dans les délais
+    • **cancelled**: Annulée par l'utilisateur ou l'admin
+    
+    **Règles métier:**
+    • Maximum 1 réservation par livre par utilisateur
+    • Pas de réservation si livre déjà emprunté par l'utilisateur
+    • Blocage si livres en retard
+    • File d'attente FIFO (Premier arrivé, premier servi)
+    • Notification automatique par email
+    • Expiration automatique après 7 jours
+end note
+
+@enduml
