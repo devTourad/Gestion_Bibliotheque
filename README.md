@@ -528,7 +528,7 @@ python manage.py shell < scripts/performance_check.py
 ---
 
 <p align="center">
-  <strong>Développé par Tourad Dah pour les entreprises mauritaniennes</strong>
+  <strong>Développé par Tourad Dah </strong>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Made%20in-Mauritania-green?style=for-the-badge" alt="Made in Mauritania">
