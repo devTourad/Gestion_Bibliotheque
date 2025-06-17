@@ -529,14 +529,9 @@ python manage.py shell < scripts/performance_check.py
 
 **Développé avec ❤️ pour la Bibliothèque GPI**
 
-*Version 1.0.0 - Décembre 2024*
-
-**Équipe de développement :**
-- Lead Developer : [Votre Nom]
-- UI/UX Designer : [Designer]
-- DevOps Engineer : [DevOps]
-- QA Tester : [Testeur]
-
+<p align="center">
+  <img src="https://img.shields.io/badge/Made%20in-Mauritania-green?style=for-the-badge" alt="Made in Mauritania">
+</p>
 
 **Sponsors :**
 - Ministère de l'Éducation Nationale
