@@ -1,0 +1,280 @@
+{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+{% block title %}Confirmer la commande #{{ purchase.id }} - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .purchase-info-card {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .confirmation-card {
+        border: 2px solid #28a745;
+        border-radius: 0.5rem;
+        background: #f8fff9;
+    }
+    
+    .purchase-details {
+        background: #f8f9fa;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .status-badge {
+        font-size: 1.1em;
+        padding: 0.5rem 1rem;
+    }
+    
+    .book-cover {
+        max-width: 120px;
+        border-radius: 0.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .confirm-button {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1.1em;
+        font-weight: bold;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .confirm-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-check-circle text-success"></i>
+                Confirmer la commande
+            </h1>
+            <p class="text-muted mb-0">Validation de la commande #{{ purchase.id }}</p>
+        </div>
+        <div>
+            <a href="{% url 'admin_purchases' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Retour aux achats
+            </a>
+        </div>
+    </div>
+
+    <!-- Informations de la commande -->
+    <div class="purchase-info-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">Commande #{{ purchase.id }}</h2>
+                <p class="mb-1">
+                    <i class="fas fa-user"></i> 
+                    <strong>Client :</strong> {{ purchase.user.get_full_name|default:purchase.user.username }}
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-envelope"></i> 
+                    <strong>Email :</strong> {{ purchase.user.email }}
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-calendar"></i> 
+                    <strong>Date de commande :</strong> {{ purchase.purchase_date|date:"d/m/Y à H:i" }}
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-euro-sign"></i> 
+                    <strong>Montant total :</strong> {{ purchase.total_price }}€
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <span class="badge bg-warning status-badge">
+                    <i class="fas fa-hourglass-half"></i>
+                    {{ purchase.get_status_display }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Détails du livre -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book"></i>
+                        Détails de la commande
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            {% if purchase.book.cover_image %}
+                                <img src="{{ purchase.book.cover_image.url }}" 
+                                     class="book-cover img-fluid" 
+                                     alt="{{ purchase.book.title }}">
+                            {% else %}
+                                <div class="book-cover bg-light d-flex align-items-center justify-content-center" 
+                                     style="height: 160px;">
+                                    <i class="fas fa-book fa-2x text-muted"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h4 class="mb-2">{{ purchase.book.title }}</h4>
+                            <p class="text-muted mb-2">{{ purchase.book.authors_list }}</p>
+                            
+                            <div class="purchase-details">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <p class="mb-1">
+                                            <strong>Quantité :</strong> {{ purchase.quantity }}
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Prix unitaire :</strong> {{ purchase.unit_price }}€
+                                        </p>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        {% if purchase.discount_percentage > 0 %}
+                                            <p class="mb-1">
+                                                <strong>Remise :</strong> 
+                                                <span class="text-success">{{ purchase.discount_percentage }}%</span>
+                                            </p>
+                                            <p class="mb-1">
+                                                <strong>Économie :</strong> 
+                                                <span class="text-success">{{ purchase.discount_amount|floatformat:2 }}€</span>
+                                            </p>
+                                        {% endif %}
+                                        <p class="mb-0">
+                                            <strong>Total :</strong> 
+                                            <span class="h5 text-primary">{{ purchase.total_price }}€</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if purchase.delivery_address %}
+                                <div class="mt-3">
+                                    <h6><i class="fas fa-truck"></i> Adresse de livraison :</h6>
+                                    <p class="text-muted mb-0">{{ purchase.delivery_address|linebreaks }}</p>
+                                </div>
+                            {% else %}
+                                <div class="mt-3">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-store"></i> Retrait en bibliothèque
+                                    </span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if purchase.notes %}
+                                <div class="mt-3">
+                                    <h6><i class="fas fa-sticky-note"></i> Notes :</h6>
+                                    <p class="text-muted mb-0">{{ purchase.notes|linebreaks }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions de confirmation -->
+        <div class="col-md-4">
+            <div class="card confirmation-card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle"></i>
+                        Confirmation de commande
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Action à effectuer :</strong><br>
+                        Confirmer cette commande pour informer le client qu'il peut venir effectuer le paiement et récupérer son livre.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Après confirmation :</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Le client sera notifié</li>
+                            <li><i class="fas fa-check text-success"></i> Statut : "Confirmée"</li>
+                            <li><i class="fas fa-check text-success"></i> Prêt pour paiement</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="post" id="confirmForm">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success confirm-button">
+                                <i class="fas fa-check-circle"></i>
+                                Confirmer la commande
+                            </button>
+                            <a href="{% url 'admin_purchases' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                                Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Informations client -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-user"></i>
+                        Informations client
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1">
+                        <strong>Nom :</strong> {{ purchase.user.get_full_name|default:purchase.user.username }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Email :</strong> {{ purchase.user.email }}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Catégorie :</strong> {{ purchase.user.get_category_display }}
+                    </p>
+                    {% if purchase.user.phone_number %}
+                        <p class="mb-0">
+                            <strong>Téléphone :</strong> {{ purchase.user.phone_number }}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmForm = document.getElementById('confirmForm');
+    
+    confirmForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (confirm('Êtes-vous sûr de vouloir confirmer cette commande ? Le client sera notifié qu\'il peut venir effectuer le paiement.')) {
+            // Afficher un indicateur de chargement
+            const submitBtn = confirmForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirmation en cours...';
+            submitBtn.disabled = true;
+            
+            // Soumettre le formulaire
+            confirmForm.submit();
+        }
+    });
+});
+</script>
+{% endblock %}

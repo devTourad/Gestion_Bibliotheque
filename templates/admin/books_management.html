@@ -1,0 +1,262 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Gestion des livres - Administration{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Gestion des livres</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-book"></i> Gestion des livres</h1>
+    <a href="{% url 'admin:library_book_add' %}" class="btn btn-primary">
+        <i class="fas fa-book-medical"></i> Nouveau livre
+    </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Recherche</label>
+                <input type="text" class="form-control" name="search" value="{{ current_search }}" 
+                       placeholder="Titre, ISBN, auteur...">
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Genre</label>
+                <select class="form-select" name="genre">
+                    <option value="">Tous</option>
+                    {% for genre in genres %}
+                        <option value="{{ genre.id }}" {% if current_genre == genre.id|stringformat:'s' %}selected{% endif %}>
+                            {{ genre.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Langue</label>
+                <select class="form-select" name="language">
+                    <option value="">Toutes</option>
+                    {% for value, label in languages %}
+                        <option value="{{ value }}" {% if current_language == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Disponibilité</label>
+                <select class="form-select" name="availability">
+                    <option value="">Tous</option>
+                    <option value="available" {% if current_availability == 'available' %}selected{% endif %}>Disponibles</option>
+                    <option value="unavailable" {% if current_availability == 'unavailable' %}selected{% endif %}>Indisponibles</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> Filtrer
+                </button>
+                <a href="{% url 'admin_books_management' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Effacer
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistiques rapides -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary">{{ page_obj.paginator.count }}</h4>
+                <small class="text-muted">Livres trouvés</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success">{{ books|length }}</h4>
+                <small class="text-muted">Sur cette page</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des livres -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list"></i> Liste des livres</h5>
+    </div>
+    <div class="card-body">
+        {% if books %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Livre</th>
+                            <th>Auteur(s)</th>
+                            <th>Genre</th>
+                            <th>Disponibilité</th>
+                            <th>Emprunts</th>
+                            <th>Prix</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for book in books %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if book.cover_image %}
+                                            <img src="{{ book.cover_image.url }}" class="me-3 rounded" 
+                                                 style="width: 50px; height: 70px; object-fit: cover;" alt="{{ book.title }}">
+                                        {% else %}
+                                            <div class="bg-light d-flex align-items-center justify-content-center me-3 rounded" 
+                                                 style="width: 50px; height: 70px;">
+                                                <i class="fas fa-book text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <strong>{{ book.title|truncatechars:40 }}</strong><br>
+                                            <small class="text-muted">ISBN: {{ book.isbn }}</small><br>
+                                            <small class="text-muted">{{ book.get_language_display }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <td>
+                                    <small>{{ book.authors_list|truncatechars:30 }}</small>
+                                </td>
+                                
+                                <td>
+                                    {% for genre in book.genres.all|slice:":2" %}
+                                        <span class="badge bg-secondary me-1">{{ genre.name }}</span>
+                                    {% endfor %}
+                                    {% if book.genres.count > 2 %}
+                                        <small class="text-muted">+{{ book.genres.count|add:"-2" }}</small>
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    <div>
+                                        {% if book.available_copies > 0 %}
+                                            <span class="badge bg-success">
+                                                {{ book.available_copies }}/{{ book.total_copies }} disponible{{ book.available_copies|pluralize }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Indisponible</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if book.current_loans > 0 %}
+                                        <small class="text-warning">{{ book.current_loans }} en cours</small>
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    <span class="badge bg-info">{{ book.loan_count }}</span>
+                                    <small class="text-muted">total</small>
+                                </td>
+                                
+                                <td>
+                                    {% if book.is_for_sale and book.purchase_price %}
+                                        <span class="badge bg-success">{{ book.purchase_price }}€</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'book_detail' book.id %}" 
+                                           class="btn btn-sm btn-outline-info" title="Voir" target="_blank">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'admin:library_book_change' book.id %}" 
+                                           class="btn btn-sm btn-outline-primary" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'admin:library_loan_changelist' %}?book__id__exact={{ book.id }}" 
+                                           class="btn btn-sm btn-outline-warning" title="Emprunts">
+                                            <i class="fas fa-handshake"></i>
+                                        </a>
+                                        
+                                        {% if not book.cover_image %}
+                                            <a href="{% url 'admin:library_book_change' book.id %}"
+                                               class="btn btn-sm btn-outline-secondary" title="Ajouter image">
+                                                <i class="fas fa-image"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <nav aria-label="Navigation des pages" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                <h4>Aucun livre trouvé</h4>
+                <p class="text-muted">Essayez de modifier vos critères de recherche.</p>
+                <a href="{% url 'admin:library_book_add' %}" class="btn btn-primary">
+                    <i class="fas fa-book-medical"></i> Ajouter un livre
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

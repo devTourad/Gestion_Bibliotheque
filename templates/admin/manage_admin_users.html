@@ -1,0 +1,313 @@
+{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+{% block title %}Gestion des Administrateurs - Super Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-level-badge {
+        font-size: 0.8em;
+        padding: 0.25rem 0.5rem;
+    }
+    .user-card {
+        transition: transform 0.2s ease;
+        border-left: 4px solid;
+    }
+    .user-card:hover {
+        transform: translateY(-2px);
+    }
+    .user-card.superuser { border-left-color: #dc3545; }
+    .user-card.super-admin { border-left-color: #fd7e14; }
+    .user-card.staff { border-left-color: #28a745; }
+    .user-card.regular { border-left-color: #6c757d; }
+    
+    .promotion-section {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #007bff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-user-cog text-primary"></i>
+                Gestion des Administrateurs
+            </h1>
+            <p class="text-muted mb-0">Gérer les privilèges des utilisateurs</p>
+        </div>
+        <div>
+            <a href="{% url 'super_admin_dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Retour au Super Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Section de promotion rapide -->
+    <div class="promotion-section">
+        <h5><i class="fas fa-rocket"></i> Promotion rapide</h5>
+        <p class="text-muted">Sélectionnez un utilisateur régulier pour lui accorder des privilèges administratifs.</p>
+        
+        <div class="row">
+            {% for user in regular_users|slice:":6" %}
+                <div class="col-md-4 mb-3">
+                    <div class="card user-card regular">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar me-3">
+                                    {{ user.first_name|first|default:user.username|first }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">{{ user.get_full_name|default:user.username }}</h6>
+                                    <small class="text-muted">{{ user.get_category_display }}</small>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                            type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'promote_user' user.id %}?action=make_staff">
+                                                <i class="fas fa-user-tie"></i> Faire Staff
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'promote_user' user.id %}?action=make_super_admin">
+                                                <i class="fas fa-crown"></i> Faire Super Admin
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12">
+                    <p class="text-muted text-center">Aucun utilisateur régulier récent à promouvoir.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="user_type" class="form-label">Type d'utilisateur</label>
+                    <select name="user_type" id="user_type" class="form-select">
+                        <option value="">Tous les administrateurs</option>
+                        <option value="superuser" {% if current_user_type == 'superuser' %}selected{% endif %}>
+                            Superutilisateurs
+                        </option>
+                        <option value="super_admin" {% if current_user_type == 'super_admin' %}selected{% endif %}>
+                            Super Admins
+                        </option>
+                        <option value="staff" {% if current_user_type == 'staff' %}selected{% endif %}>
+                            Staff
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="search" class="form-label">Rechercher</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Nom, prénom, email..." value="{{ current_search }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des administrateurs -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-users-cog"></i>
+                Utilisateurs avec privilèges ({{ page_obj.paginator.count }} résultats)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if admin_users %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Utilisateur</th>
+                                <th>Catégorie</th>
+                                <th>Niveau d'accès</th>
+                                <th>Inscription</th>
+                                <th>Dernière connexion</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in admin_users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar me-3" style="width: 40px; height: 40px; font-size: 1em;">
+                                                {{ user.first_name|first|default:user.username|first }}
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">{{ user.get_full_name|default:user.username }}</h6>
+                                                <small class="text-muted">{{ user.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            {{ user.get_category_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_superuser %}
+                                            <span class="badge bg-danger admin-level-badge">
+                                                <i class="fas fa-shield-alt"></i> Superutilisateur
+                                            </span>
+                                        {% elif user.is_super_admin %}
+                                            <span class="badge bg-warning admin-level-badge">
+                                                <i class="fas fa-crown"></i> Super Admin
+                                            </span>
+                                        {% elif user.is_staff %}
+                                            <span class="badge bg-success admin-level-badge">
+                                                <i class="fas fa-user-tie"></i> Staff
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ user.date_joined|date:"d/m/Y" }}
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            {{ user.last_login|date:"d/m/Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Jamais</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not user.is_superuser and user != request.user %}
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                                        type="button" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-cog"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    {% if not user.is_super_admin %}
+                                                        <li>
+                                                            <a class="dropdown-item" href="{% url 'promote_user' user.id %}?action=make_super_admin">
+                                                                <i class="fas fa-arrow-up text-warning"></i> 
+                                                                Promouvoir Super Admin
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                    
+                                                    {% if not user.is_staff %}
+                                                        <li>
+                                                            <a class="dropdown-item" href="{% url 'promote_user' user.id %}?action=make_staff">
+                                                                <i class="fas fa-user-plus text-success"></i> 
+                                                                Faire Staff
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                    
+                                                    {% if user.is_staff or user.is_super_admin %}
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li>
+                                                            <a class="dropdown-item text-danger" 
+                                                               href="{% url 'promote_user' user.id %}?action=remove_privileges"
+                                                               onclick="return confirm('Êtes-vous sûr de vouloir retirer tous les privilèges administratifs à {{ user.get_full_name|default:user.username }} ?')">
+                                                                <i class="fas fa-user-minus"></i> 
+                                                                Retirer privilèges
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        {% elif user == request.user %}
+                                            <span class="badge bg-info">Vous</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Protégé</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users-cog fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun administrateur trouvé</h5>
+                    <p class="text-muted">Aucun utilisateur ne correspond aux critères de recherche.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Navigation des administrateurs" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if current_user_type %}&user_type={{ current_user_type }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_user_type %}&user_type={{ current_user_type }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_user_type %}&user_type={{ current_user_type }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if current_user_type %}&user_type={{ current_user_type }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

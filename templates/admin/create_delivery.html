@@ -1,0 +1,285 @@
+{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+{% block title %}Créer une livraison - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .purchase-info {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .delivery-method-card {
+        border: 2px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .delivery-method-card:hover {
+        border-color: #007bff;
+        background: #f8f9fa;
+    }
+    .delivery-method-card.selected {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    .method-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-truck text-primary"></i>
+                Créer une livraison
+            </h1>
+            <p class="text-muted mb-0">Organiser la livraison pour la commande #{{ purchase.id }}</p>
+        </div>
+        <div>
+            <a href="{% url 'admin_purchases' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Retour aux achats
+            </a>
+        </div>
+    </div>
+
+    <!-- Informations de l'achat -->
+    <div class="purchase-info">
+        <h5><i class="fas fa-shopping-cart"></i> Informations de la commande</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Commande:</strong> #{{ purchase.id }}</p>
+                <p><strong>Client:</strong> {{ purchase.user.get_full_name|default:purchase.user.username }}</p>
+                <p><strong>Email:</strong> {{ purchase.user.email }}</p>
+                <p><strong>Livre:</strong> {{ purchase.book.title }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Quantité:</strong> {{ purchase.quantity }}</p>
+                <p><strong>Prix total:</strong> {{ purchase.total_price|floatformat:2 }}€</p>
+                <p><strong>Date d'achat:</strong> {{ purchase.purchase_date|date:"d/m/Y H:i" }}</p>
+                <p><strong>Statut:</strong> 
+                    <span class="badge bg-success">{{ purchase.get_status_display }}</span>
+                </p>
+            </div>
+        </div>
+        {% if purchase.delivery_address %}
+            <div class="mt-2">
+                <strong>Adresse fournie:</strong><br>
+                {{ purchase.delivery_address|linebreaks }}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Formulaire de création de livraison -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-clipboard-list"></i>
+                Détails de la livraison
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" id="delivery-form">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Erreurs:</h6>
+                        <ul class="mb-0">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Méthode de livraison -->
+                <div class="mb-4">
+                    <label class="form-label">
+                        <i class="fas fa-shipping-fast"></i> {{ form.delivery_method.label }}
+                    </label>
+                    <div class="row">
+                        {% for value, label in form.delivery_method.field.choices %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="delivery-method-card" data-method="{{ value }}">
+                                    <div class="text-center">
+                                        {% if value == 'pickup' %}
+                                            <i class="fas fa-building method-icon text-info"></i>
+                                        {% elif value == 'home_delivery' %}
+                                            <i class="fas fa-home method-icon text-success"></i>
+                                        {% elif value == 'post_office' %}
+                                            <i class="fas fa-map-marker-alt method-icon text-warning"></i>
+                                        {% elif value == 'express' %}
+                                            <i class="fas fa-bolt method-icon text-danger"></i>
+                                        {% elif value == 'registered' %}
+                                            <i class="fas fa-certificate method-icon text-primary"></i>
+                                        {% endif %}
+                                        <h6>{{ label }}</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {{ form.delivery_method }}
+                </div>
+
+                <div class="row">
+                    <!-- Destinataire -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.recipient_name.id_for_label }}" class="form-label">
+                                <i class="fas fa-user"></i> {{ form.recipient_name.label }}
+                            </label>
+                            {{ form.recipient_name }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.recipient_email.id_for_label }}" class="form-label">
+                                <i class="fas fa-envelope"></i> {{ form.recipient_email.label }}
+                            </label>
+                            {{ form.recipient_email }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.recipient_phone.id_for_label }}" class="form-label">
+                                <i class="fas fa-phone"></i> {{ form.recipient_phone.label }}
+                            </label>
+                            {{ form.recipient_phone }}
+                        </div>
+                    </div>
+
+                    <!-- Adresse et détails -->
+                    <div class="col-md-6">
+                        <div class="mb-3" id="delivery-address-group">
+                            <label for="{{ form.delivery_address.id_for_label }}" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> {{ form.delivery_address.label }}
+                            </label>
+                            {{ form.delivery_address }}
+                        </div>
+                        
+                        <div class="mb-3" id="pickup-location-group" style="display: none;">
+                            <label for="{{ form.pickup_location.id_for_label }}" class="form-label">
+                                <i class="fas fa-building"></i> {{ form.pickup_location.label }}
+                            </label>
+                            {{ form.pickup_location }}
+                            <div class="form-text">
+                                Exemple: Bibliothèque centrale, Bureau d'accueil
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.estimated_delivery_date.id_for_label }}" class="form-label">
+                                <i class="fas fa-calendar"></i> {{ form.estimated_delivery_date.label }}
+                            </label>
+                            {{ form.estimated_delivery_date }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions et coût -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label for="{{ form.delivery_instructions.id_for_label }}" class="form-label">
+                                <i class="fas fa-sticky-note"></i> {{ form.delivery_instructions.label }}
+                            </label>
+                            {{ form.delivery_instructions }}
+                            <div class="form-text">
+                                Instructions spéciales pour le livreur (étage, code d'accès, etc.)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.delivery_cost.id_for_label }}" class="form-label">
+                                <i class="fas fa-euro-sign"></i> {{ form.delivery_cost.label }}
+                            </label>
+                            {{ form.delivery_cost }}
+                            <div class="form-text">
+                                Coût supplémentaire de livraison
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'admin_purchases' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Créer la livraison
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deliveryMethodInput = document.getElementById('{{ form.delivery_method.id_for_label }}');
+    const methodCards = document.querySelectorAll('.delivery-method-card');
+    const deliveryAddressGroup = document.getElementById('delivery-address-group');
+    const pickupLocationGroup = document.getElementById('pickup-location-group');
+    
+    // Gestion de la sélection des méthodes de livraison
+    methodCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const method = this.dataset.method;
+            
+            // Mettre à jour la sélection visuelle
+            methodCards.forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Mettre à jour le champ caché
+            deliveryMethodInput.value = method;
+            
+            // Afficher/masquer les champs selon la méthode
+            if (method === 'pickup') {
+                deliveryAddressGroup.style.display = 'none';
+                pickupLocationGroup.style.display = 'block';
+            } else {
+                deliveryAddressGroup.style.display = 'block';
+                pickupLocationGroup.style.display = 'none';
+            }
+        });
+    });
+    
+    // Initialiser avec la valeur par défaut
+    if (deliveryMethodInput.value) {
+        const selectedCard = document.querySelector(`[data-method="${deliveryMethodInput.value}"]`);
+        if (selectedCard) {
+            selectedCard.click();
+        }
+    } else {
+        // Sélectionner la première méthode par défaut
+        if (methodCards.length > 0) {
+            methodCards[0].click();
+        }
+    }
+    
+    // Définir une date de livraison estimée par défaut (dans 3 jours)
+    const estimatedDateInput = document.getElementById('{{ form.estimated_delivery_date.id_for_label }}');
+    if (!estimatedDateInput.value) {
+        const now = new Date();
+        now.setDate(now.getDate() + 3);
+        const formatted = now.toISOString().slice(0, 16);
+        estimatedDateInput.value = formatted;
+    }
+});
+</script>
+{% endblock %}

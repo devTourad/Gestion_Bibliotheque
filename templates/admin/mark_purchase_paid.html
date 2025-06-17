@@ -1,0 +1,278 @@
+{% extends 'admin/base_admin.html' %}
+{% load static %}
+
+{% block title %}Marquer comme payé - Commande #{{ purchase.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .purchase-info-card {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .payment-card {
+        border: 2px solid #28a745;
+        border-radius: 0.5rem;
+        background: #f8fff9;
+    }
+    
+    .payment-button {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1.1em;
+        font-weight: bold;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .payment-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    
+    .amount-display {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #28a745;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-credit-card text-success"></i>
+                Marquer comme payé
+            </h1>
+            <p class="text-muted mb-0">Enregistrer le paiement de la commande #{{ purchase.id }}</p>
+        </div>
+        <div>
+            <a href="{% url 'admin_purchases' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Retour aux achats
+            </a>
+        </div>
+    </div>
+
+    <!-- Informations de la commande -->
+    <div class="purchase-info-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-receipt"></i>
+                    Commande #{{ purchase.id }}
+                </h2>
+                <p class="mb-1">
+                    <i class="fas fa-user"></i> 
+                    <strong>Client :</strong> {{ purchase.user.get_full_name|default:purchase.user.username }}
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-book"></i> 
+                    <strong>Livre :</strong> {{ purchase.book.title }}
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-calendar"></i> 
+                    <strong>Date :</strong> {{ purchase.purchase_date|date:"d/m/Y à H:i" }}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="amount-display">
+                    {{ purchase.total_price }}€
+                </div>
+                <span class="badge bg-light text-dark">
+                    <i class="fas fa-info-circle"></i>
+                    {{ purchase.get_status_display }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Détails du paiement -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        Détails du paiement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Informations de facturation</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Quantité :</strong></td>
+                                    <td>{{ purchase.quantity }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Prix unitaire :</strong></td>
+                                    <td>{{ purchase.unit_price }}€</td>
+                                </tr>
+                                {% if purchase.discount_percentage > 0 %}
+                                    <tr>
+                                        <td><strong>Remise :</strong></td>
+                                        <td class="text-success">{{ purchase.discount_percentage }}% (-{{ purchase.discount_amount|floatformat:2 }}€)</td>
+                                    </tr>
+                                {% endif %}
+                                <tr class="table-success">
+                                    <td><strong>Total à payer :</strong></td>
+                                    <td><strong>{{ purchase.total_price }}€</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Informations client</h6>
+                            <p class="mb-1">
+                                <strong>Nom :</strong> {{ purchase.user.get_full_name|default:purchase.user.username }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Email :</strong> {{ purchase.user.email }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Catégorie :</strong> {{ purchase.user.get_category_display }}
+                            </p>
+                            {% if purchase.user.phone_number %}
+                                <p class="mb-0">
+                                    <strong>Téléphone :</strong> {{ purchase.user.phone_number }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if purchase.delivery_address %}
+                        <div class="mt-3">
+                            <h6><i class="fas fa-truck"></i> Livraison</h6>
+                            <div class="alert alert-info">
+                                <strong>Adresse de livraison :</strong><br>
+                                {{ purchase.delivery_address|linebreaks }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mt-3">
+                            <div class="alert alert-success">
+                                <i class="fas fa-store"></i>
+                                <strong>Retrait en bibliothèque</strong><br>
+                                Le client peut récupérer son livre immédiatement après le paiement.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions de paiement -->
+        <div class="col-md-4">
+            <div class="card payment-card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-credit-card"></i>
+                        Enregistrer le paiement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Attention :</strong><br>
+                        Cette action marquera la commande comme payée et créera un enregistrement de paiement.
+                    </div>
+                    
+                    <div class="text-center mb-3">
+                        <div class="amount-display">
+                            {{ purchase.total_price }}€
+                        </div>
+                        <small class="text-muted">Montant à encaisser</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Après paiement :</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Statut : "Payé"</li>
+                            <li><i class="fas fa-check text-success"></i> Paiement enregistré</li>
+                            {% if purchase.delivery_address %}
+                                <li><i class="fas fa-check text-success"></i> Prêt pour livraison</li>
+                            {% else %}
+                                <li><i class="fas fa-check text-success"></i> Livre disponible</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success payment-button">
+                                <i class="fas fa-credit-card"></i>
+                                Marquer comme payé
+                            </button>
+                            <a href="{% url 'admin_purchases' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                                Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Historique des paiements -->
+            {% if purchase.payment %}
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history"></i>
+                            Paiement existant
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1">
+                            <strong>Montant :</strong> {{ purchase.payment.amount }}€
+                        </p>
+                        <p class="mb-1">
+                            <strong>Statut :</strong> 
+                            <span class="badge bg-{% if purchase.payment.status == 'completed' %}success{% else %}warning{% endif %}">
+                                {{ purchase.payment.get_status_display }}
+                            </span>
+                        </p>
+                        {% if purchase.payment.processed_by %}
+                            <p class="mb-0">
+                                <strong>Traité par :</strong> {{ purchase.payment.processed_by.get_full_name }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentForm = document.getElementById('paymentForm');
+    
+    paymentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const amount = '{{ purchase.total_price }}';
+        if (confirm(`Confirmer l'encaissement de ${amount} MRU pour cette commande ?\n\nCette action marquera la commande comme payée et créera un enregistrement de paiement.`)) {
+            // Afficher un indicateur de chargement
+            const submitBtn = paymentForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+            submitBtn.disabled = true;
+            
+            // Soumettre le formulaire
+            paymentForm.submit();
+        }
+    });
+});
+</script>
+{% endblock %}
